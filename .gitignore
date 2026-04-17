@@ -1,1 +1,5 @@
 .superpowers/
+docs/
+.claude/
+.docs/
+wordleapi.md
