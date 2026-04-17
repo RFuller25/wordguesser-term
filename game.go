@@ -80,6 +80,8 @@ func (m gameModel) Init() tea.Cmd {
 func (m *gameModel) loadState() tea.Msg {
 	now := time.Now().In(chicagoTZ())
 	date := now.Format("2006-01-02")
+	// Ensure today's word exists (auto-generates one if not set yet)
+	m.client.GetWord(date)
 	state, err := m.client.GetGameState(m.client.username, date)
 	return gameStateMsg{state: state, err: err}
 }

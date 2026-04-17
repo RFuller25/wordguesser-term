@@ -185,6 +185,18 @@ func (c *APIClient) GetUserStats(username string) (*UserStatsResponse, error) {
 	return &stats, err
 }
 
+type WordResponse struct {
+	Word string `json:"word"`
+	Date string `json:"date"`
+}
+
+func (c *APIClient) GetWord(date string) (*WordResponse, error) {
+	var word WordResponse
+	params := url.Values{"date": {date}}
+	err := c.getJSON("/api/wordle/word/", params, &word)
+	return &word, err
+}
+
 func (c *APIClient) GetResults(date string) (*ResultsResponse, error) {
 	var results ResultsResponse
 	params := url.Values{"date": {date}}
