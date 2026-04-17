@@ -179,10 +179,37 @@ func (c *APIClient) GetLeaderboard() (*LeaderboardResponse, error) {
 }
 
 func (c *APIClient) GetUserStats(username string) (*UserStatsResponse, error) {
+	u := baseURL + "/api/wordle/user-stats/?" + url.Values{"username": {username}}.Encode()
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Wordle-Secret", c.secret)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("network error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return nil, nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read error: %w", err)
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+	}
+
 	var stats UserStatsResponse
-	params := url.Values{"username": {username}}
-	err := c.getJSON("/api/wordle/user-stats/", params, &stats)
-	return &stats, err
+	if err := json.Unmarshal(body, &stats); err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }
 
 type WordResponse struct {

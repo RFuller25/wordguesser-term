@@ -47,6 +47,7 @@ type gameModel struct {
 	spinner    spinner.Model
 	flashMsg   string
 	flashUntil time.Time
+	showHints  bool
 }
 
 type guessResultMsg struct {
@@ -136,6 +137,16 @@ func (m gameModel) Update(msg tea.Msg) (gameModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Toggle hint panel with ? regardless of game state.
+		if msg.Type == tea.KeyRunes {
+			for _, r := range msg.Runes {
+				if r == '?' {
+					m.showHints = !m.showHints
+					return m, nil
+				}
+			}
+		}
+
 		if m.completed || m.loading {
 			return m, nil
 		}
@@ -216,12 +227,18 @@ func (m gameModel) View() string {
 		} else {
 			sb.WriteString(grayStyle.Render(fmt.Sprintf("The word was: %s", strings.ToUpper(m.revealWord))) + "\n")
 		}
+	} else if m.showHints {
+		sb.WriteString(dimStyle.Render(fmt.Sprintf("Guess %d/6 | ? to hide hints", len(m.guesses)+1)) + "\n")
 	} else {
-		sb.WriteString(dimStyle.Render(fmt.Sprintf("Guess %d/6 | Type a word and press Enter", len(m.guesses)+1)) + "\n")
+		sb.WriteString(dimStyle.Render(fmt.Sprintf("Guess %d/6 | Type a word and press Enter | ? for hints", len(m.guesses)+1)) + "\n")
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(m.renderKeyboard())
+	if m.showHints {
+		sb.WriteString(m.renderHints())
+	} else {
+		sb.WriteString(m.renderKeyboard())
+	}
 
 	return sb.String()
 }
@@ -296,4 +313,47 @@ func (m gameModel) renderKeyboard() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Center, lines...)
+}
+
+func (m gameModel) renderHints() string {
+	hints := getHints(m.guesses)
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#6366f1"))
+	wordStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
+
+	var sb strings.Builder
+
+	if len(hints) == 0 {
+		sb.WriteString(dimStyle.Render("No matching words found.") + "\n")
+		return sb.String()
+	}
+
+	sb.WriteString(headerStyle.Render(fmt.Sprintf("Possible words (%d shown)", len(hints))) + "\n\n")
+
+	// Render in 4 columns, colouring letters by known state.
+	cols := 4
+	for i, w := range hints {
+		upper := strings.ToUpper(w)
+		var styled strings.Builder
+		for _, ch := range upper {
+			switch m.letters[ch] {
+			case letterCorrect:
+				styled.WriteString(greenStyle.Render(string(ch)))
+			case letterWrongPos:
+				styled.WriteString(yellowStyle.Render(string(ch)))
+			default:
+				styled.WriteString(wordStyle.Render(string(ch)))
+			}
+		}
+		cell := lipgloss.NewStyle().Width(8).Render(styled.String())
+		sb.WriteString(cell)
+		if (i+1)%cols == 0 {
+			sb.WriteString("\n")
+		}
+	}
+	if len(hints)%cols != 0 {
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }
