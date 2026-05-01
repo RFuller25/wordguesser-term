@@ -41,6 +41,7 @@ type gameModel struct {
 	input      string
 	completed  bool
 	won        bool
+	skipped    bool
 	revealWord string
 	letters    map[rune]letterState
 	loading    bool
@@ -56,8 +57,9 @@ type guessResultMsg struct {
 }
 
 type gameStateMsg struct {
-	state *GameState
-	err   error
+	state   *GameState
+	err     error
+	skipped bool
 }
 
 type flashClearMsg struct{}
@@ -81,8 +83,10 @@ func (m gameModel) Init() tea.Cmd {
 func (m *gameModel) loadState() tea.Msg {
 	now := time.Now().In(chicagoTZ())
 	date := now.Format("2006-01-02")
-	// Ensure today's word exists (auto-generates one if not set yet)
-	m.client.GetWord(date)
+	wordData, err := m.client.GetWord(date)
+	if err == nil && wordData.Skipped {
+		return gameStateMsg{skipped: true}
+	}
 	state, err := m.client.GetGameState(m.client.username, date)
 	return gameStateMsg{state: state, err: err}
 }
@@ -99,6 +103,10 @@ func (m gameModel) Update(msg tea.Msg) (gameModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case gameStateMsg:
 		m.loading = false
+		if msg.skipped {
+			m.skipped = true
+			return m, nil
+		}
 		if msg.err == nil {
 			m.guesses = msg.state.Guesses
 			m.completed = msg.state.Completed
@@ -208,6 +216,10 @@ func (m gameModel) InputEmpty() bool {
 }
 
 func (m gameModel) View() string {
+	if m.skipped {
+		return grayStyle.Render("No Wordle today — day called off. Streaks are safe, see you tomorrow!") + "\n"
+	}
+
 	var sb strings.Builder
 
 	for i := 0; i < 6; i++ {

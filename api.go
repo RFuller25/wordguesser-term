@@ -213,8 +213,9 @@ func (c *APIClient) GetUserStats(username string) (*UserStatsResponse, error) {
 }
 
 type WordResponse struct {
-	Word string `json:"word"`
-	Date string `json:"date"`
+	Word    string `json:"word"`
+	Date    string `json:"date"`
+	Skipped bool   `json:"skipped"`
 }
 
 func (c *APIClient) GetWord(date string) (*WordResponse, error) {
