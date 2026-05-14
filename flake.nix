@@ -14,7 +14,7 @@
         packages = {
           wordguesser = pkgs.buildGoModule {
             pname = "wordguesser";
-            version = "0.1.0";
+            version = "0.2.0";
             src = ./.;
             vendorHash = "sha256-HsV9tFxW9vLAFHgVFrBopSqgdN/wAN1ss734rPQMbNM=";
             postInstall = ''

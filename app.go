@@ -15,9 +15,12 @@ const (
 	tabLeaderboard
 	tabStats
 	tabHistory
+	tabExperiment
 )
 
-var tabNames = []string{"1 Game", "2 Leaderboard", "3 Stats", "4 History"}
+const tabCount = 5
+
+var tabNames = []string{"1 Game", "2 Leaderboard", "3 Stats", "4 History", "5 Experiment"}
 
 type tickMsg time.Time
 
@@ -27,6 +30,7 @@ type appModel struct {
 	leaderboard leaderboardModel
 	stats       statsModel
 	history     historyModel
+	experiment  experimentModel
 	setup       setupModel
 	needsSetup  bool
 	bubbleField bubbleField
@@ -52,6 +56,7 @@ func newApp(cfg *Config, username string, needsSetup bool) appModel {
 		m.leaderboard = newLeaderboardModel(m.client, username)
 		m.stats = newStatsModel(m.client, username)
 		m.history = newHistoryModel(m.client)
+		m.experiment = newExperimentModel()
 	}
 
 	return m
@@ -107,6 +112,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.leaderboard = newLeaderboardModel(m.client, m.username)
 				m.stats = newStatsModel(m.client, m.username)
 				m.history = newHistoryModel(m.client)
+		m.experiment = newExperimentModel()
 				return m, tea.Batch(m.tickCmd(), m.game.Init())
 			}
 			cmds = append(cmds, cmd)
@@ -117,13 +123,14 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switched := false
 		switch msg.Type {
 		case tea.KeyTab:
-			m.activeTab = (m.activeTab + 1) % 4
+			m.activeTab = (m.activeTab + 1) % tabCount
 			switched = true
 		case tea.KeyShiftTab:
-			m.activeTab = (m.activeTab + 3) % 4
+			m.activeTab = (m.activeTab + tabCount - 1) % tabCount
 			switched = true
 		case tea.KeyRunes:
-			if m.activeTab != tabGame || m.game.InputEmpty() {
+			gameTyping := m.activeTab == tabGame && !m.game.InputEmpty()
+			if !gameTyping {
 				switch string(msg.Runes) {
 				case "1":
 					m.activeTab = tabGame
@@ -136,6 +143,9 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					switched = true
 				case "4":
 					m.activeTab = tabHistory
+					switched = true
+				case "5":
+					m.activeTab = tabExperiment
 					switched = true
 				}
 			}
@@ -166,6 +176,8 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stats, cmd = m.stats.Update(msg)
 		case tabHistory:
 			m.history, cmd = m.history.Update(msg)
+		case tabExperiment:
+			m.experiment, cmd = m.experiment.Update(msg)
 		}
 		cmds = append(cmds, cmd)
 	} else {
@@ -180,6 +192,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.leaderboard = newLeaderboardModel(m.client, m.username)
 			m.stats = newStatsModel(m.client, m.username)
 			m.history = newHistoryModel(m.client)
+		m.experiment = newExperimentModel()
 			cmds = append(cmds, m.game.Init())
 		}
 		cmds = append(cmds, cmd)
@@ -213,8 +226,10 @@ func (m appModel) View() string {
 			fg += m.stats.View()
 		case tabHistory:
 			fg += m.history.View()
+		case tabExperiment:
+			fg += m.experiment.View()
 		}
-		fg += "\n" + dimStyle.Render("Tab/1-4: switch views | Ctrl+C: quit")
+		fg += "\n" + dimStyle.Render("Tab/1-5: switch views | Ctrl+C: quit")
 	}
 
 	return overlay(bg, fg, m.width, m.height)
