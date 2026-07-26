@@ -15,12 +15,13 @@ const (
 	tabLeaderboard
 	tabStats
 	tabHistory
+	tabTrends
 	tabExperiment
 )
 
-const tabCount = 5
+const tabCount = 6
 
-var tabNames = []string{"1 Game", "2 Leaderboard", "3 Stats", "4 History", "5 Experiment"}
+var tabNames = []string{"1 Game", "2 Leaderboard", "3 Stats", "4 History", "5 Trends", "6 Experiment"}
 
 type tickMsg time.Time
 
@@ -30,6 +31,7 @@ type appModel struct {
 	leaderboard leaderboardModel
 	stats       statsModel
 	history     historyModel
+	trends      trendsModel
 	experiment  experimentModel
 	setup       setupModel
 	needsSetup  bool
@@ -52,10 +54,13 @@ func newApp(cfg *Config, username string, needsSetup bool) appModel {
 		m.setup = newSetupModel(username)
 	} else {
 		m.client = newAPIClient(cfg.APIKey, username)
+		resultsStore := newResultsStore(m.client.GetResults)
+		statsStore := newStatsStore(m.client.GetUserStats)
 		m.game = newGameModel(m.client)
 		m.leaderboard = newLeaderboardModel(m.client, username)
-		m.stats = newStatsModel(m.client, username)
-		m.history = newHistoryModel(m.client)
+		m.stats = newStatsModel(statsStore, username)
+		m.history = newHistoryModel(resultsStore, statsStore)
+		m.trends = newTrendsModel(resultsStore)
 		m.experiment = newExperimentModel()
 	}
 
@@ -88,6 +93,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.bubbleField.resize(msg.Width, msg.Height)
+		m.trends.Resize(msg.Width, msg.Height)
 		return m, nil
 
 	case tickMsg:
@@ -108,11 +114,14 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.config = m.setup.config
 				m.username = m.config.Username
 				m.client = newAPIClient(m.config.APIKey, m.username)
+				resultsStore := newResultsStore(m.client.GetResults)
+				statsStore := newStatsStore(m.client.GetUserStats)
 				m.game = newGameModel(m.client)
 				m.leaderboard = newLeaderboardModel(m.client, m.username)
-				m.stats = newStatsModel(m.client, m.username)
-				m.history = newHistoryModel(m.client)
-		m.experiment = newExperimentModel()
+				m.stats = newStatsModel(statsStore, m.username)
+				m.history = newHistoryModel(resultsStore, statsStore)
+				m.trends = newTrendsModel(resultsStore)
+				m.experiment = newExperimentModel()
 				return m, tea.Batch(m.tickCmd(), m.game.Init())
 			}
 			cmds = append(cmds, cmd)
@@ -145,6 +154,9 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.activeTab = tabHistory
 					switched = true
 				case "5":
+					m.activeTab = tabTrends
+					switched = true
+				case "6":
 					m.activeTab = tabExperiment
 					switched = true
 				}
@@ -159,6 +171,8 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, m.stats.Fetch())
 			case tabHistory:
 				cmds = append(cmds, m.history.Fetch())
+			case tabTrends:
+				cmds = append(cmds, m.trends.Fetch())
 			}
 			return m, tea.Batch(cmds...)
 		}
@@ -176,6 +190,8 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stats, cmd = m.stats.Update(msg)
 		case tabHistory:
 			m.history, cmd = m.history.Update(msg)
+		case tabTrends:
+			m.trends, cmd = m.trends.Update(msg)
 		case tabExperiment:
 			m.experiment, cmd = m.experiment.Update(msg)
 		}
@@ -188,11 +204,14 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.config = m.setup.config
 			m.username = m.config.Username
 			m.client = newAPIClient(m.config.APIKey, m.username)
+			resultsStore := newResultsStore(m.client.GetResults)
+			statsStore := newStatsStore(m.client.GetUserStats)
 			m.game = newGameModel(m.client)
 			m.leaderboard = newLeaderboardModel(m.client, m.username)
-			m.stats = newStatsModel(m.client, m.username)
-			m.history = newHistoryModel(m.client)
-		m.experiment = newExperimentModel()
+			m.stats = newStatsModel(statsStore, m.username)
+			m.history = newHistoryModel(resultsStore, statsStore)
+			m.trends = newTrendsModel(resultsStore)
+			m.experiment = newExperimentModel()
 			cmds = append(cmds, m.game.Init())
 		}
 		cmds = append(cmds, cmd)
@@ -226,10 +245,12 @@ func (m appModel) View() string {
 			fg += m.stats.View()
 		case tabHistory:
 			fg += m.history.View()
+		case tabTrends:
+			fg += m.trends.View()
 		case tabExperiment:
 			fg += m.experiment.View()
 		}
-		fg += "\n" + dimStyle.Render("Tab/1-5: switch views | Ctrl+C: quit")
+		fg += "\n" + dimStyle.Render("Tab/1-6: switch views | Ctrl+C: quit")
 	}
 
 	return overlay(bg, fg, m.width, m.height)

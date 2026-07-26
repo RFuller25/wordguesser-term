@@ -259,19 +259,7 @@ func (m gameModel) renderRow(row int) string {
 	cells := make([]string, 5)
 
 	if row < len(m.guesses) {
-		word := strings.ToUpper(m.guesses[row].Word)
-		pattern := m.guesses[row].Pattern
-		for i := 0; i < 5; i++ {
-			ch := string(word[i])
-			switch rune(pattern[i]) {
-			case 'g':
-				cells[i] = greenBorder.Render(greenStyle.Bold(true).Render(ch))
-			case 'y':
-				cells[i] = yellowBorder.Render(yellowStyle.Bold(true).Render(ch))
-			case 'x':
-				cells[i] = grayBorder.Render(grayStyle.Render(ch))
-			}
-		}
+		return renderGuessGridRow(m.guesses[row].Word, m.guesses[row].Pattern)
 	} else if row == len(m.guesses) && !m.completed {
 		for i := 0; i < 5; i++ {
 			if i < len(m.input) {
@@ -289,6 +277,42 @@ func (m gameModel) renderRow(row int) string {
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Center, cells...)
+}
+
+// renderGuessGridRow renders a single 5-cell tile row for one guess word/pattern pair.
+func renderGuessGridRow(word, pattern string) string {
+	word = strings.ToUpper(word)
+	cells := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		ch := string(word[i])
+		switch rune(pattern[i]) {
+		case 'g':
+			cells[i] = greenBorder.Render(greenStyle.Bold(true).Render(ch))
+		case 'y':
+			cells[i] = yellowBorder.Render(yellowStyle.Bold(true).Render(ch))
+		case 'x':
+			cells[i] = grayBorder.Render(grayStyle.Render(ch))
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Center, cells...)
+}
+
+// renderGuessGrid renders `rows` rows of 5-cell tile grids for a full game board.
+// Rows beyond len(words) render as empty (unfilled) rows.
+func renderGuessGrid(words []string, patterns []string, rows int) string {
+	lines := make([]string, rows)
+	for i := 0; i < rows; i++ {
+		if i < len(words) && i < len(patterns) {
+			lines[i] = renderGuessGridRow(words[i], patterns[i])
+		} else {
+			cells := make([]string, 5)
+			for j := 0; j < 5; j++ {
+				cells[j] = emptyBorder.Render(" ")
+			}
+			lines[i] = lipgloss.JoinHorizontal(lipgloss.Center, cells...)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m gameModel) renderKeyboard() string {

@@ -10,7 +10,7 @@ import (
 )
 
 type statsModel struct {
-	client   *APIClient
+	store    *statsStore
 	stats    *UserStatsResponse
 	loading  bool
 	spinner  spinner.Model
@@ -23,13 +23,13 @@ type statsMsg struct {
 	err  error
 }
 
-func newStatsModel(client *APIClient, username string) statsModel {
+func newStatsModel(store *statsStore, username string) statsModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = accentStyle
 
 	return statsModel{
-		client:   client,
+		store:    store,
 		spinner:  s,
 		username: username,
 	}
@@ -41,8 +41,10 @@ func (m statsModel) Init() tea.Cmd {
 
 func (m *statsModel) Fetch() tea.Cmd {
 	m.loading = true
+	store := m.store
+	username := m.username
 	return tea.Batch(m.spinner.Tick, func() tea.Msg {
-		resp, err := m.client.GetUserStats(m.username)
+		resp, err := store.Get(username)
 		return statsMsg{resp: resp, err: err}
 	})
 }
