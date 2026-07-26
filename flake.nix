@@ -16,7 +16,7 @@
             pname = "wordguesser";
             version = "0.2.0";
             src = ./.;
-            vendorHash = "sha256-5MuGR0S6LjSCsbNTNA1sbvsAjB2hkUYNsvK+eM/LYFk=";
+            vendorHash = "sha256-QsuRAXQXn6ko/SBAfAzntuMAlAsltCV8rBXAZL5Yxaw=";
             postInstall = ''
               mv $out/bin/wordguesser-term $out/bin/wordguesser
             '';
