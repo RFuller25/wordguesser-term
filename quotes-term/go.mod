@@ -1,6 +1,6 @@
 module github.com/rhysfuller/quotes-term
 
-go 1.26.5
+go 1.26.1
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0

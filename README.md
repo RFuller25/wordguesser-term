@@ -55,3 +55,13 @@ sudo nixos-rebuild switch --flake /etc/nixos#nixos
 ```
 
 Again, replace `nixos` at the end with your hostname if needed.
+
+## Quotes
+
+A separate TUI for the [Quotes guessing game](https://rhysfuller.com/watermelon/quotes/) lives in `quotes-term/`. It's an independent Go module and Nix package — installing one doesn't pull in the other.
+
+```bash
+nix profile install path:/path/to/wordguesser-term#quotes
+```
+
+This installs the `quotes` binary. Replace `/path/to/wordguesser-term` with the actual path to this repository.
