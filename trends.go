@@ -134,6 +134,17 @@ func buildDistribution(dates []string, byDate map[string]*ResultsResponse) []gue
 	return out
 }
 
+// excludeDate returns dates without the given date.
+func excludeDate(dates []string, date string) []string {
+	out := make([]string, 0, len(dates))
+	for _, d := range dates {
+		if d != date {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 type wordStat struct {
 	solved int
 	total  int
@@ -200,6 +211,7 @@ const trendsWindowDays = 30
 
 type trendsModel struct {
 	resultsStore *resultsStore
+	username     string
 
 	windowEnd time.Time
 
@@ -239,12 +251,13 @@ type trendsMsg struct {
 	haveBestDay  bool
 }
 
-func newTrendsModel(store *resultsStore) trendsModel {
+func newTrendsModel(store *resultsStore, username string) trendsModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = accentStyle
 	return trendsModel{
 		resultsStore: store,
+		username:     username,
 		windowEnd:    time.Now().In(chicagoTZ()),
 		spinner:      s,
 	}
@@ -299,6 +312,7 @@ func (m *trendsModel) Fetch() tea.Cmd {
 	dates := windowDates(m.windowEnd)
 	today := time.Now().In(chicagoTZ()).Format("2006-01-02")
 	store := m.resultsStore
+	username := m.username
 	return tea.Batch(m.spinner.Tick, func() tea.Msg {
 		byDate := fetchResultsWindow(store, dates, today)
 		days := buildDayStats(dates, byDate)
@@ -309,7 +323,13 @@ func (m *trendsModel) Fetch() tea.Cmd {
 		}
 		sort.Strings(names)
 		dist := buildDistribution(dates, byDate)
-		word, rate, haveHardest := hardestWord(dates, byDate)
+		// Today's word would be a spoiler until the player has finished
+		// today's game, so leave today out of the hardest-word pick until then.
+		wordDates := dates
+		if !userCompleted(byDate[today], username) {
+			wordDates = excludeDate(dates, today)
+		}
+		word, rate, haveHardest := hardestWord(wordDates, byDate)
 		bDate, bScore, haveBest := bestDay(days)
 		return trendsMsg{
 			days: days, perPlayer: perPlayer, playerNames: names,

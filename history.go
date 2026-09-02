@@ -11,15 +11,16 @@ import (
 )
 
 type historyModel struct {
-	resultsStore  *resultsStore
-	statsStore    *statsStore
-	date          time.Time
-	results       *ResultsResponse
-	loading       bool
-	spinner       spinner.Model
-	errMsg        string
-	cursor        int
-	viewingPlayer bool
+	resultsStore   *resultsStore
+	statsStore     *statsStore
+	date           time.Time
+	results        *ResultsResponse
+	loading        bool
+	spinner        spinner.Model
+	errMsg         string
+	cursor         int
+	viewingPlayer  bool
+	username       string
 	streakUsername string
 	streak         *UserStatsResponse
 }
@@ -35,7 +36,7 @@ type historyStreakMsg struct {
 	err      error
 }
 
-func newHistoryModel(store *resultsStore, statsStore *statsStore) historyModel {
+func newHistoryModel(store *resultsStore, statsStore *statsStore, username string) historyModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = accentStyle
@@ -45,6 +46,7 @@ func newHistoryModel(store *resultsStore, statsStore *statsStore) historyModel {
 		statsStore:   statsStore,
 		date:         time.Now().In(chicagoTZ()),
 		spinner:      s,
+		username:     username,
 	}
 }
 
@@ -146,6 +148,44 @@ func (m historyModel) Update(msg tea.Msg) (historyModel, tea.Cmd) {
 	return m, nil
 }
 
+// userCompleted reports whether username has finished (won or lost) their game
+// in resp. A nil resp, or a user with no entry in it, counts as unfinished.
+func userCompleted(resp *ResultsResponse, username string) bool {
+	if resp == nil {
+		return false
+	}
+	for _, r := range resp.Results {
+		if strings.EqualFold(r.Username, username) {
+			return r.Completed
+		}
+	}
+	return false
+}
+
+// spoilersHidden reports whether the answer for the viewed date must stay
+// hidden: true only while that date is today and the current user has not
+// finished today's game yet. Past dates are always safe to reveal.
+func (m historyModel) spoilersHidden() bool {
+	today := time.Now().In(chicagoTZ()).Format("2006-01-02")
+	if m.date.Format("2006-01-02") != today {
+		return false
+	}
+	return !userCompleted(m.results, m.username)
+}
+
+// renderWordLine renders the "Word:" line for the viewed date, masking the
+// answer while spoilers are hidden. It returns "" when there is no line to
+// show at all.
+func (m historyModel) renderWordLine() string {
+	if m.spoilersHidden() {
+		return dimStyle.Render("Word: hidden until you finish today's game")
+	}
+	if m.results == nil || m.results.Word == "" {
+		return ""
+	}
+	return fmt.Sprintf("Word: %s", greenStyle.Bold(true).Render(strings.ToUpper(m.results.Word)))
+}
+
 func (m historyModel) View() string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#6366f1")).MarginBottom(1)
 
@@ -176,8 +216,8 @@ func (m historyModel) View() string {
 		return m.renderPlayerBoard()
 	}
 
-	if m.results.Word != "" {
-		sb.WriteString(fmt.Sprintf("  Word: %s\n\n", greenStyle.Bold(true).Render(strings.ToUpper(m.results.Word))))
+	if line := m.renderWordLine(); line != "" {
+		sb.WriteString("  " + line + "\n\n")
 	}
 
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#888888"))
@@ -224,8 +264,8 @@ func (m historyModel) renderPlayerBoard() string {
 	sb.WriteString(titleStyle.Render("History") + "\n\n")
 	sb.WriteString(fmt.Sprintf("  %s\n", accentStyle.Bold(true).Render(r.Username)))
 
-	if m.results.Word != "" {
-		sb.WriteString(fmt.Sprintf("  Word: %s\n", greenStyle.Bold(true).Render(strings.ToUpper(m.results.Word))))
+	if line := m.renderWordLine(); line != "" {
+		sb.WriteString("  " + line + "\n")
 	}
 
 	status := "In progress"
@@ -243,9 +283,18 @@ func (m historyModel) renderPlayerBoard() string {
 	}
 	sb.WriteString("\n")
 
-	grid := renderGuessGrid(r.Guesses, r.Patterns, 6)
+	guesses := r.Guesses
+	masked := m.spoilersHidden() && !strings.EqualFold(r.Username, m.username)
+	if masked {
+		guesses = maskedWords(len(r.Patterns))
+	}
+	grid := renderGuessGrid(guesses, r.Patterns, 6)
 	for _, line := range strings.Split(grid, "\n") {
 		sb.WriteString("  " + line + "\n")
+	}
+
+	if masked {
+		sb.WriteString("\n" + dimStyle.Render("  Letters hidden until you finish today's game") + "\n")
 	}
 
 	sb.WriteString("\n" + dimStyle.Render("  Esc to go back") + "\n")

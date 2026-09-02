@@ -315,6 +315,16 @@ func renderGuessGrid(words []string, patterns []string, rows int) string {
 	return strings.Join(lines, "\n")
 }
 
+// maskedWords returns n blank five-character placeholders, so a board can be
+// rendered as colored tiles without revealing the letters that were guessed.
+func maskedWords(n int) []string {
+	words := make([]string, n)
+	for i := range words {
+		words[i] = "     "
+	}
+	return words
+}
+
 func (m gameModel) renderKeyboard() string {
 	rows := []string{"QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"}
 	var lines []string

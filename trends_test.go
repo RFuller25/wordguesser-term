@@ -200,7 +200,7 @@ func TestWindowDates_ReturnsChronologicalRange(t *testing.T) {
 }
 
 func TestTrendsModel_LeftShiftsWindowBack(t *testing.T) {
-	m := newTrendsModel(&resultsStore{fetch: func(string) (*ResultsResponse, error) { return &ResultsResponse{}, nil }, mem: newMemCache[*ResultsResponse]()})
+	m := newTrendsModel(&resultsStore{fetch: func(string) (*ResultsResponse, error) { return &ResultsResponse{}, nil }, mem: newMemCache[*ResultsResponse]()}, "alice")
 	start := m.windowEnd
 	m2, cmd := m.Update(tea.KeyMsg{Type: tea.KeyLeft})
 	if cmd == nil {
@@ -212,7 +212,7 @@ func TestTrendsModel_LeftShiftsWindowBack(t *testing.T) {
 }
 
 func TestTrendsModel_RightBlockedPastToday(t *testing.T) {
-	m := newTrendsModel(&resultsStore{fetch: func(string) (*ResultsResponse, error) { return &ResultsResponse{}, nil }, mem: newMemCache[*ResultsResponse]()})
+	m := newTrendsModel(&resultsStore{fetch: func(string) (*ResultsResponse, error) { return &ResultsResponse{}, nil }, mem: newMemCache[*ResultsResponse]()}, "alice")
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRight})
 	if cmd != nil {
 		t.Fatal("expected no cmd when windowEnd is already today")
@@ -285,7 +285,7 @@ func TestTrendsModel_FetchBuildsStatsAndUsesAllWindowDates(t *testing.T) {
 		},
 		mem: newMemCache[*ResultsResponse](),
 	}
-	m := newTrendsModel(store)
+	m := newTrendsModel(store, "alice")
 	cmd := m.Fetch()
 	batch, ok := cmd().(tea.BatchMsg)
 	if !ok || len(batch) < 2 {
@@ -329,5 +329,41 @@ func TestTrendsModel_ViewRendersWithoutPanicking(t *testing.T) {
 	m.playerMode = 1
 	if out := m.View(); out == "" {
 		t.Fatal("expected non-empty View() in all-overlay mode")
+	}
+}
+
+func TestHardestWordSkipsTodayUntilPlayerFinishes(t *testing.T) {
+	today := time.Now().In(chicagoTZ()).Format("2006-01-02")
+	yesterday := time.Now().In(chicagoTZ()).AddDate(0, 0, -1).Format("2006-01-02")
+	store := &resultsStore{
+		fetch: func(date string) (*ResultsResponse, error) {
+			switch date {
+			case today:
+				// Nobody has solved today's word, so it is the hardest so far.
+				return &ResultsResponse{Date: date, Word: "zebra", Results: []ResultEntry{
+					{Username: "bob", Completed: false, NumGuesses: 1},
+					{Username: "alice", Solved: false, Completed: true, NumGuesses: 6},
+				}}, nil
+			case yesterday:
+				return &ResultsResponse{Date: date, Word: "crane", Results: []ResultEntry{
+					{Username: "bob", Solved: true, Completed: true, NumGuesses: 3},
+				}}, nil
+			}
+			return &ResultsResponse{Date: date}, nil
+		},
+		mem: newMemCache[*ResultsResponse](),
+	}
+
+	hardestFor := func(username string) string {
+		m := newTrendsModel(store, username)
+		batch := m.Fetch()().(tea.BatchMsg)
+		return batch[1]().(trendsMsg).hardestWord
+	}
+
+	if got := hardestFor("bob"); got != "CRANE" {
+		t.Fatalf("expected today's word withheld from an unfinished player, got %q", got)
+	}
+	if got := hardestFor("alice"); got != "ZEBRA" {
+		t.Fatalf("expected today's word for a finished player, got %q", got)
 	}
 }

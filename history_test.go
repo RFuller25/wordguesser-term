@@ -215,3 +215,92 @@ func TestHistoryModel_RenderPlayerBoardShowsStreak(t *testing.T) {
 		t.Fatalf("expected streak line, got:\n%s", out)
 	}
 }
+
+// todayResults returns today's (Chicago) results with alice finished and bob
+// still playing.
+func todayResults() *ResultsResponse {
+	return &ResultsResponse{
+		Date: time.Now().In(chicagoTZ()).Format("2006-01-02"),
+		Word: "crane",
+		Results: []ResultEntry{
+			{Username: "alice", Guesses: []string{"board", "crane"}, Patterns: []string{"xyxxx", "ggggg"}, Solved: true, Completed: true, NumGuesses: 2},
+			{Username: "bob", Guesses: []string{"slate"}, Patterns: []string{"xxxxy"}, Completed: false, NumGuesses: 1},
+		},
+	}
+}
+
+func TestHistoryModel_TodayWordHiddenUntilPlayerFinishes(t *testing.T) {
+	m := historyModel{date: time.Now().In(chicagoTZ()), results: todayResults(), username: "bob"}
+
+	if !m.spoilersHidden() {
+		t.Fatal("expected spoilers hidden for a player still in progress")
+	}
+	if strings.Contains(strings.ToUpper(m.renderWordLine()), "CRANE") {
+		t.Fatalf("word line leaked the answer: %q", m.renderWordLine())
+	}
+
+	m.username = "alice"
+	if m.spoilersHidden() {
+		t.Fatal("expected spoilers shown for a player who finished")
+	}
+	if !strings.Contains(strings.ToUpper(m.renderWordLine()), "CRANE") {
+		t.Fatalf("expected the answer for a finished player, got %q", m.renderWordLine())
+	}
+}
+
+func TestHistoryModel_TodayWordHiddenWhenPlayerHasNoEntry(t *testing.T) {
+	m := historyModel{date: time.Now().In(chicagoTZ()), results: todayResults(), username: "carol"}
+	if !m.spoilersHidden() {
+		t.Fatal("expected spoilers hidden for a player who has not played today")
+	}
+}
+
+func TestHistoryModel_PastDateAlwaysRevealsWord(t *testing.T) {
+	m := historyModel{
+		date:     time.Now().In(chicagoTZ()).AddDate(0, 0, -1),
+		results:  sampleResults(),
+		username: "bob",
+	}
+	if m.spoilersHidden() {
+		t.Fatal("expected past dates to be revealed regardless of today's game")
+	}
+	if !strings.Contains(strings.ToUpper(m.renderWordLine()), "CRANE") {
+		t.Fatalf("expected past date to show the word, got %q", m.renderWordLine())
+	}
+}
+
+func TestHistoryModel_PlayerBoardMasksLettersUntilPlayerFinishes(t *testing.T) {
+	m := historyModel{
+		date:          time.Now().In(chicagoTZ()),
+		results:       todayResults(),
+		username:      "bob",
+		viewingPlayer: true,
+		cursor:        0, // alice, who has solved it
+	}
+
+	board := strings.ToUpper(m.renderPlayerBoard())
+	for _, ch := range []string{"C", "R", "A", "N", "E", "B", "O", "D"} {
+		if strings.Contains(board, "│ "+ch+" │") {
+			t.Fatalf("player board leaked letter %s:\n%s", ch, board)
+		}
+	}
+
+	m.username = "alice"
+	revealed := strings.ToUpper(m.renderPlayerBoard())
+	if !strings.Contains(revealed, "│ C │") {
+		t.Fatalf("expected a finished player to see the letters:\n%s", revealed)
+	}
+}
+
+func TestUserCompleted(t *testing.T) {
+	if userCompleted(nil, "alice") {
+		t.Fatal("nil results should count as unfinished")
+	}
+	r := todayResults()
+	if !userCompleted(r, "ALICE") {
+		t.Fatal("expected case-insensitive match for a finished player")
+	}
+	if userCompleted(r, "bob") {
+		t.Fatal("expected bob to count as unfinished")
+	}
+}

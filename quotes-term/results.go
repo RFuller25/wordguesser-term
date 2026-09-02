@@ -71,6 +71,21 @@ func (m resultsModel) Update(msg tea.Msg) (resultsModel, tea.Cmd) {
 	return m, nil
 }
 
+// userCompleted reports whether username has finished today's quote (won or
+// used every attempt) according to resp. A nil resp, or a user with no entry
+// in it, counts as unfinished — the author stays hidden until they play.
+func userCompleted(resp *ResultsResponse, username string) bool {
+	if resp == nil {
+		return false
+	}
+	for _, r := range resp.Results {
+		if strings.EqualFold(r.Username, username) {
+			return r.Won || len(r.Attempts) >= maxAttempts
+		}
+	}
+	return false
+}
+
 func (m resultsModel) View() string {
 	var sb strings.Builder
 	sb.WriteString(titleStyle.Render("Today's Results") + "\n\n")
@@ -91,7 +106,11 @@ func (m resultsModel) View() string {
 	}
 
 	sb.WriteString(brightStyle.Render(fmt.Sprintf("\"%s\"", m.data.Quote)) + "\n")
-	sb.WriteString(dimStyle.Render("— "+m.data.Author) + "\n\n")
+	if userCompleted(m.data, m.username) {
+		sb.WriteString(dimStyle.Render("— "+m.data.Author) + "\n\n")
+	} else {
+		sb.WriteString(dimStyle.Render("— hidden until you finish today's quote") + "\n\n")
+	}
 
 	if len(m.data.Results) == 0 {
 		sb.WriteString(dimStyle.Render("No one has played yet.") + "\n")

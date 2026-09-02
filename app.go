@@ -59,8 +59,8 @@ func newApp(cfg *Config, username string, needsSetup bool) appModel {
 		m.game = newGameModel(m.client)
 		m.leaderboard = newLeaderboardModel(m.client, username)
 		m.stats = newStatsModel(statsStore, username)
-		m.history = newHistoryModel(resultsStore, statsStore)
-		m.trends = newTrendsModel(resultsStore)
+		m.history = newHistoryModel(resultsStore, statsStore, username)
+		m.trends = newTrendsModel(resultsStore, username)
 		m.experiment = newExperimentModel()
 	}
 
@@ -119,8 +119,8 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.game = newGameModel(m.client)
 				m.leaderboard = newLeaderboardModel(m.client, m.username)
 				m.stats = newStatsModel(statsStore, m.username)
-				m.history = newHistoryModel(resultsStore, statsStore)
-				m.trends = newTrendsModel(resultsStore)
+				m.history = newHistoryModel(resultsStore, statsStore, m.username)
+				m.trends = newTrendsModel(resultsStore, m.username)
 				m.experiment = newExperimentModel()
 				return m, tea.Batch(m.tickCmd(), m.game.Init())
 			}
@@ -209,8 +209,8 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.game = newGameModel(m.client)
 			m.leaderboard = newLeaderboardModel(m.client, m.username)
 			m.stats = newStatsModel(statsStore, m.username)
-			m.history = newHistoryModel(resultsStore, statsStore)
-			m.trends = newTrendsModel(resultsStore)
+			m.history = newHistoryModel(resultsStore, statsStore, m.username)
+			m.trends = newTrendsModel(resultsStore, m.username)
 			m.experiment = newExperimentModel()
 			cmds = append(cmds, m.game.Init())
 		}
