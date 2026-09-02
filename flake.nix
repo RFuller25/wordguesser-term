@@ -14,7 +14,7 @@
         packages = {
           wordguesser = pkgs.buildGoModule {
             pname = "wordguesser";
-            version = "0.2.0";
+            version = "0.3.0";
             src = ./.;
             vendorHash = "sha256-QsuRAXQXn6ko/SBAfAzntuMAlAsltCV8rBXAZL5Yxaw=";
             subPackages = [ "." ];
@@ -24,7 +24,7 @@
           };
           quotes = pkgs.buildGoModule {
             pname = "quotes-term";
-            version = "0.1.0";
+            version = "0.2.0";
             src = ./quotes-term;
             vendorHash = "sha256-HsV9tFxW9vLAFHgVFrBopSqgdN/wAN1ss734rPQMbNM=";
             postInstall = ''
