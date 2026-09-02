@@ -253,6 +253,21 @@ func optionLabel(index int) string {
 	return string(rune('A' + index))
 }
 
+// guessedWrong reports whether option index i (0-based) is one the player has
+// already picked and got wrong. Attempts hold 1-based option numbers; a correct
+// pick ends the game, so it is only ever the final attempt of a won game.
+func (m playModel) guessedWrong(i int) bool {
+	for j, a := range m.attempts {
+		if m.won && j == len(m.attempts)-1 {
+			continue
+		}
+		if a == i+1 {
+			return true
+		}
+	}
+	return false
+}
+
 func (m playModel) View() string {
 	var sb strings.Builder
 	sb.WriteString(titleStyle.Render("Quotes") + "\n\n")
@@ -288,9 +303,18 @@ func (m playModel) View() string {
 
 	for i, opt := range m.options {
 		label := fmt.Sprintf("%s) %s", optionLabel(i), opt)
-		if i == m.cursor {
+		wrong := m.guessedWrong(i)
+		if wrong {
+			label += "  ✗"
+		}
+		switch {
+		case i == m.cursor && wrong:
+			sb.WriteString(redStyle.Bold(true).Render("> "+label) + "\n")
+		case i == m.cursor:
 			sb.WriteString(accentStyle.Bold(true).Render("> "+label) + "\n")
-		} else {
+		case wrong:
+			sb.WriteString(redStyle.Render("  "+label) + "\n")
+		default:
 			sb.WriteString("  " + label + "\n")
 		}
 	}
