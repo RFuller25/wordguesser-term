@@ -79,6 +79,10 @@ type LeaderboardEntry struct {
 	AvgAttempts   float64 `json:"avg_attempts"`
 	CurrentStreak int     `json:"current_streak"`
 	BestStreak    int     `json:"best_streak"`
+
+	FirstTryWins          int `json:"first_try_wins"`
+	CurrentFirstTryStreak int `json:"current_first_try_streak"`
+	BestFirstTryStreak    int `json:"best_first_try_streak"`
 }
 
 type LeaderboardResponse struct {
@@ -91,6 +95,26 @@ type UserStatsResponse struct {
 	Won           int    `json:"won"`
 	CurrentStreak int    `json:"current_streak"`
 	BestStreak    int    `json:"best_streak"`
+
+	WinPct                float64 `json:"win_pct"`
+	TotalScore            int     `json:"total_score"`
+	AvgAttempts           float64 `json:"avg_attempts"`
+	BestAttempts          int     `json:"best_attempts"`
+	FirstTryWins          int     `json:"first_try_wins"`
+	FirstTryPct           float64 `json:"first_try_pct"`
+	CurrentFirstTryStreak int     `json:"current_first_try_streak"`
+	BestFirstTryStreak    int     `json:"best_first_try_streak"`
+	// AttemptDist is [fails, won on 1st, won on 2nd, won on 3rd].
+	AttemptDist []int         `json:"attempt_dist"`
+	History     []HistoryGame `json:"history"`
+}
+
+// HistoryGame is one completed game, oldest first.
+type HistoryGame struct {
+	Date     string `json:"date"`
+	Won      bool   `json:"won"`
+	Attempts int    `json:"attempts"`
+	Score    int    `json:"score"`
 }
 
 func (c *APIClient) doGet(path string, params url.Values) (int, []byte, error) {

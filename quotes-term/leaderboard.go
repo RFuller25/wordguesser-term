@@ -93,12 +93,13 @@ func (m leaderboardModel) View() string {
 	header := fmt.Sprintf("  %-4s %-14s %6s %6s %5s %6s %6s %6s",
 		"#", "Player", "Score", "Games", "Wins", "Avg", "Streak", "Best")
 	sb.WriteString(headerStyle.Render(header) + "\n")
-	sb.WriteString(dimStyle.Render(strings.Repeat("─", 70)) + "\n")
+	sb.WriteString(dimStyle.Render(strings.Repeat("─", 86)) + "\n")
 
 	for i, e := range m.entries {
-		line := fmt.Sprintf("  %-4d %-14s %6d %6d %5d %6.1f %6d %6d",
+		line := fmt.Sprintf("  %-4d %-14s %6d %6d %5d %6.1f %6d %6d %7d %6d",
 			i+1, e.Username, e.TotalScore, e.GamesPlayed, e.GamesWon,
-			e.AvgAttempts, e.CurrentStreak, e.BestStreak)
+			e.AvgAttempts, e.CurrentStreak, e.BestStreak,
+			e.CurrentFirstTryStreak, e.BestFirstTryStreak)
 
 		if strings.EqualFold(e.Username, m.username) {
 			sb.WriteString(accentStyle.Bold(true).Render(line) + "\n")

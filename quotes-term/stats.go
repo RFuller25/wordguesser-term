@@ -117,8 +117,32 @@ func (m statsModel) View() string {
 		cardStyle.Render(labelStyle.Render("Best Streak") + "\n" + valueStyle.Render(fmt.Sprintf("%d", s.BestStreak))),
 	}
 
+	avg := "—"
+	if s.AvgAttempts > 0 {
+		avg = fmt.Sprintf("%.2f", s.AvgAttempts)
+	}
+	cards3 := []string{
+		cardStyle.Render(labelStyle.Render("Avg Attempts") + "\n" + valueStyle.Render(avg)),
+		cardStyle.Render(labelStyle.Render("First-Try Wins") + "\n" + valueStyle.Render(fmt.Sprintf("%d (%.0f%%)", s.FirstTryWins, s.FirstTryPct))),
+	}
+	cards4 := []string{
+		cardStyle.Render(labelStyle.Render("1st-Try Streak") + "\n" + valueStyle.Render(fmt.Sprintf("%d", s.CurrentFirstTryStreak))),
+		cardStyle.Render(labelStyle.Render("Best 1st-Try") + "\n" + valueStyle.Render(fmt.Sprintf("%d", s.BestFirstTryStreak))),
+	}
+
 	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, cards...) + "\n\n")
-	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, cards2...) + "\n")
+	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, cards2...) + "\n\n")
+	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, cards3...) + "\n\n")
+	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, cards4...) + "\n\n")
+
+	if len(s.AttemptDist) == 4 {
+		sb.WriteString(labelStyle.Render("Attempts to win") + "\n")
+		sb.WriteString(renderDistribution(s.AttemptDist) + "\n")
+	}
+	if line := renderRollingSparkline(s.History, rollingWindow); line != "" {
+		sb.WriteString(labelStyle.Render(fmt.Sprintf("Rolling avg attempts, last %d wins (lower is better)", rollingWindow)) + "\n")
+		sb.WriteString(line + "\n")
+	}
 
 	return sb.String()
 }
